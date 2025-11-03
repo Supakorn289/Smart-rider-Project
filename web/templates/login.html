@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}เข้าสู่ระบบ - Smart Rider System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="text-center"><i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ</h4>
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                    {% endif %}
+                    
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">ชื่อผู้ใช้</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">รหัสผ่าน</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">เข้าสู่ระบบ</button>
+                    </form>
+                    
+                    <div class="mt-3 text-center">
+                        <small>ข้อมูลสำหรับทดสอบ: admin / admin123</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

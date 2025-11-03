@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}กล้องสด AI - Smart Rider System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse bg-dark">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> แดชบอร์ด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('live') }}">
+                            <i class="fas fa-video"></i> กล้องสด AI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('test_ai') }}">
+                            <i class="fas fa-robot"></i> ทดสอบ AI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('events') }}">
+                            <i class="fas fa-list"></i> เหตุการณ์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-robot"></i> กล้องสดตรวจจับหมวกกันน็อค AI
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('test_ai') }}" class="btn btn-outline-info">
+                        <i class="fas fa-flask"></i> ทดสอบ AI
+                    </a>
+                </div>
+            </div>
+
+            <!-- Real-time Stats -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="totalFrames">0</h4>
+                                    <p>เฟรมที่ประมวลผล</p>
+                                </div>
+                                <i class="fas fa-film fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="violations">0</h4>
+                                    <p>พบการไม่สวมหมวก</p>
+                                </div>
+                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="lastDetection">-</h4>
+                                    <p>ตรวจพบล่าสุด</p>
+                                </div>
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Feed -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-camera"></i> กล้องสดตรวจจับแบบ Real-time
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ url_for('video_feed') }}" class="img-fluid rounded" 
+                         style="max-width: 90%; border: 3px solid #0d6efd;">
+                    <div class="mt-3">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            ระบบกำลังตรวจจับ: <strong>บุคคล + รถมอเตอร์ไซค์ + หมวกกันน็อค</strong>
+                        </p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="alert alert-info">
+                                <i class="fas fa-person"></i> 
+                                <strong>บุคคล:</strong> <span id="personCount">0</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-motorcycle"></i> 
+                                <strong>รถมอเตอร์ไซค์:</strong> <span id="bikeCount">0</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-success">
+                                <i class="fas fa-helmet-safety"></i> 
+                                <strong>หมวกกันน็อค:</strong> <span id="helmetCount">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Information -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-microchip"></i> ข้อมูลระบบ AI</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>โมเดลที่ใช้:</h6>
+                                    <ul>
+                                        <li><strong>YOLOv8n:</strong> ตรวจจับบุคคลและรถมอเตอร์ไซค์</li>
+                                        <li><strong>Helmet Model:</strong> ตรวจจับหมวกกันน็อค</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>ความสามารถ:</h6>
+                                    <ul>
+                                        <li>ตรวจจับผู้ไม่สวมหมวกกันน็อคแบบ real-time</li>
+                                        <li>บันทึกภาพอัตโนมัติเมื่อพบการละเมิด</li>
+                                        <li>แสดงผลการตรวจจับแบบ live</li>
+                                        <li>เก็บสถิติการตรวจจับ</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+// อัพเดทสถิติแบบ real-time
+function updateStats() {
+    fetch('/api/detection_stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('totalFrames').textContent = data.total_frames.toLocaleString();
+            document.getElementById('violations').textContent = data.violations_detected.toLocaleString();
+            
+            if (data.last_violation) {
+                const date = new Date(data.last_violation);
+                document.getElementById('lastDetection').textContent = date.toLocaleTimeString();
+            }
+        })
+        .catch(error => console.error('Error fetching stats:', error));
+}
+
+// อัพเดททุก 3 วินาที
+setInterval(updateStats, 3000);
+updateStats(); // เรียกครั้งแรกทันที
+</script>
+{% endblock %}

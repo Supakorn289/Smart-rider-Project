@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการไฟล์ - Smart Rider System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse bg-dark">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> แดชบอร์ด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('upload_file') }}">
+                            <i class="fas fa-upload"></i> อัปโหลดไฟล์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('manage_files') }}">
+                            <i class="fas fa-folder"></i> จัดการไฟล์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2"><i class="fas fa-folder"></i> จัดการไฟล์</h1>
+                <button class="btn btn-warning" onclick="cleanupFiles()">
+                    <i class="fas fa-broom"></i> ทำความสะอาดไฟล์เก่า
+                </button>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-robot"></i> ไฟล์ที่ตรวจจับได้โดย AI</h5>
+                </div>
+                <div class="card-body">
+                    {% if ai_files %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ชื่อไฟล์</th>
+                                    <th>ประเภท</th>
+                                    <th>ขนาด</th>
+                                    <th>วันที่</th>
+                                    <th>การดำเนินการ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in ai_files %}
+                                <tr>
+                                    <td>{{ file.name }}</td>
+                                    <td>
+                                        {% if file.type == 'video' %}
+                                        <span class="badge bg-primary">วิดีโอ</span>
+                                        {% else %}
+                                        <span class="badge bg-success">ภาพ</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ file.size }}</td>
+                                    <td>{{ file.date }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="viewFile('ai', '{{ file.name }}')">
+                                            <i class="fas fa-eye"></i> ดู
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteFile('ai', '{{ file.name }}')">
+                                            <i class="fas fa-trash"></i> ลบ
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">ไม่มีไฟล์ที่ตรวจจับได้</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-upload"></i> ไฟล์ที่อัปโหลด manually</h5>
+                </div>
+                <div class="card-body">
+                    {% if manual_files %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ชื่อไฟล์</th>
+                                    <th>ประเภท</th>
+                                    <th>ขนาด</th>
+                                    <th>วันที่</th>
+                                    <th>การดำเนินการ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in manual_files %}
+                                <tr>
+                                    <td>{{ file.name }}</td>
+                                    <td>
+                                        {% if file.type == 'video' %}
+                                        <span class="badge bg-primary">วิดีโอ</span>
+                                        {% else %}
+                                        <span class="badge bg-success">ภาพ</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ file.size }}</td>
+                                    <td>{{ file.date }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="viewFile('manual', '{{ file.name }}')">
+                                            <i class="fas fa-eye"></i> ดู
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteFile('manual', '{{ file.name }}')">
+                                            <i class="fas fa-trash"></i> ลบ
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">ไม่มีไฟล์ที่อัปโหลด</p>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="fileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ดูไฟล์</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="fileImage" src="" class="img-fluid" style="display: none;">
+                <video id="fileVideo" controls class="img-fluid" style="display: none;">
+                    <source id="videoSource" src="" type="video/mp4">
+                    เบราว์เซอร์ของคุณไม่รองรับการเล่นวิดีโอ
+                </video>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewFile(fileType, filename) {
+    const imageElem = document.getElementById('fileImage');
+    const videoElem = document.getElementById('fileVideo');
+    const videoSource = document.getElementById('videoSource');
+    
+    imageElem.style.display = 'none';
+    videoElem.style.display = 'none';
+    
+    let fileUrl;
+    if (fileType === 'ai') {
+        fileUrl = '/captures/' + filename;
+    } else {
+        fileUrl = '/uploads/' + filename;
+    }
+    
+    if (filename.toLowerCase().endsWith('.mp4') || 
+        filename.toLowerCase().endsWith('.avi') || 
+        filename.toLowerCase().endsWith('.mov')) {
+        videoSource.src = fileUrl;
+        videoElem.load();
+        videoElem.style.display = 'block';
+    } else {
+        imageElem.src = fileUrl;
+        imageElem.style.display = 'block';
+    }
+    
+    new bootstrap.Modal(document.getElementById('fileModal')).show();
+}
+
+function deleteFile(fileType, filename) {
+    if (confirm('คุณแน่ใจที่จะลบไฟล์ "' + filename + '" นี้?')) {
+        fetch('/delete_file/' + fileType + '/' + filename)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('ลบไฟล์เรียบร้อยแล้ว');
+                    location.reload();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + data.error);
+                }
+            });
+    }
+}
+
+function cleanupFiles() {
+    if (confirm('คุณแน่ใจที่จะทำความสะอาดไฟล์เก่าทั้งหมด?')) {
+        fetch('/cleanup_files', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + data.error);
+                }
+            });
+    }
+}
+</script>
+{% endblock %}

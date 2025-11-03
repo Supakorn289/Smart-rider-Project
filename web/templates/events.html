@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}เหตุการณ์ - Smart Rider System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse bg-dark">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> แดชบอร์ด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live') }}">
+                            <i class="fas fa-video"></i> กล้องสด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if event_type == 'all' %}active{% endif %}" 
+                           href="{{ url_for('events') }}">
+                            <i class="fas fa-list"></i> เหตุการณ์ทั้งหมด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if event_type == 'no_helmet' %}active{% endif %}" 
+                           href="{{ url_for('events') }}?type=no_helmet">
+                            <i class="fas fa-helmet-safety"></i> ไม่สวมหมวกกันน็อค
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if event_type == 'loud_exhaust' %}active{% endif %}" 
+                           href="{{ url_for('events') }}?type=loud_exhaust">
+                            <i class="fas fa-volume-up"></i> เสียงท่อดัง
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if event_type == 'speeding' %}active{% endif %}" 
+                           href="{{ url_for('events') }}?type=speeding">
+                            <i class="fas fa-tachometer-alt"></i> ขับเร็วเกินกำหนด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    {% if event_type == 'all' %}เหตุการณ์ทั้งหมด
+                    {% elif event_type == 'no_helmet' %}ไม่สวมหมวกกันน็อค
+                    {% elif event_type == 'loud_exhaust' %}เสียงท่อดัง
+                    {% elif event_type == 'speeding' %}ขับเร็วเกินกำหนด
+                    {% else %}เหตุการณ์ทั้งหมด{% endif %}
+                </h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
+                    <i class="fas fa-plus"></i> เพิ่มเหตุการณ์
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ประเภท</th>
+                            <th>คำอธิบาย</th>
+                            <th>สถานที่</th>
+                            <th>วันที่/เวลา</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td>{{ event[0] }}</td>
+                            <td>
+                                {% if event[1] == 'no_helmet' %}
+                                <span class="badge bg-warning">ไม่สวมหมวกกันน็อค</span>
+                                {% elif event[1] == 'loud_exhaust' %}
+                                <span class="badge bg-danger">เสียงท่อดัง</span>
+                                {% elif event[1] == 'speeding' %}
+                                <span class="badge bg-info">ขับเร็วเกินกำหนด</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ event[1] }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ event[2] }}</td>
+                            <td>{{ event[4] }}</td>
+                            <td>{{ event[5] }}</td>
+                            <td>
+                                <a href="{{ url_for('delete_event', event_id=event[0]) }}" 
+                                   class="btn btn-sm btn-danger" 
+                                   onclick="return confirm('คุณแน่ใจที่จะลบเหตุการณ์นี้?')">
+                                    <i class="fas fa-trash"></i> ลบ
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if total_pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?type={{ event_type }}&page={{ page-1 }}">ก่อนหน้า</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in range(1, total_pages + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="?type={{ event_type }}&page={{ p }}">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?type={{ event_type }}&page={{ page+1 }}">ถัดไป</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="addEventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">เพิ่มเหตุการณ์ใหม่</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEventForm">
+                    <div class="mb-3">
+                        <label class="form-label">ประเภทเหตุการณ์</label>
+                        <select class="form-select" name="type" required>
+                            <option value="no_helmet">ไม่สวมหมวกกันน็อค</option>
+                            <option value="loud_exhaust">เสียงท่อดัง</option>
+                            <option value="speeding">ขับเร็วเกินกำหนด</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">คำอธิบาย</label>
+                        <textarea class="form-control" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">สถานที่</label>
+                        <input type="text" class="form-control" name="location" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-primary" onclick="addEvent()">บันทึก</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addEvent() {
+    const form = document.getElementById('addEventForm');
+    const formData = new FormData(form);
+    
+    fetch('/add_event', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('เกิดข้อผิดพลาด: ' + data.error);
+        }
+    });
+}
+</script>
+{% endblock %}

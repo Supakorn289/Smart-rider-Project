@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}แดชบอร์ด - Smart Rider System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse bg-dark">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> แดชบอร์ด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live') }}">
+                            <i class="fas fa-video"></i> กล้องสด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('upload_file') }}">
+                            <i class="fas fa-upload"></i> อัปโหลดไฟล์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_files') }}">
+                            <i class="fas fa-folder"></i> จัดการไฟล์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('events') }}">
+                            <i class="fas fa-list"></i> เหตุการณ์ทั้งหมด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">แดชบอร์ด</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <span class="me-3">สวัสดี, {{ username }}</span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ total_events }}</h4>
+                                    <p>เหตุการณ์ทั้งหมด</p>
+                                </div>
+                                <i class="fas fa-list fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ no_helmet_count }}</h4>
+                                    <p>ไม่สวมหมวกกันน็อค</p>
+                                </div>
+                                <i class="fas fa-helmet-safety fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-danger mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ exhaust_count }}</h4>
+                                    <p>เสียงท่อดัง</p>
+                                </div>
+                                <i class="fas fa-volume-up fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ speeding_count }}</h4>
+                                    <p>ขับเร็วเกินกำหนด</p>
+                                </div>
+                                <i class="fas fa-tachometer-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>พื้นที่เก็บข้อมูล</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><i class="fas fa-hdd"></i> ไฟล์ที่ตรวจจับได้: {{ capture_size }}</p>
+                            <p><i class="fas fa-upload"></i> ไฟล์ที่อัปโหลด: {{ upload_size }}</p>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="cleanupFiles()">
+                                <i class="fas fa-broom"></i> ทำความสะอาดไฟล์เก่า
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>สถิติรายวัน (7 วัน)</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="dailyChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>สถิติรายชั่วโมง (24 ชม.)</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="hourlyChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>เหตุการณ์ล่าสุด</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_events %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>เวลา</th>
+                                            <th>ประเภท</th>
+                                            <th>คำอธิบาย</th>
+                                            <th>สถานที่</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for event in recent_events %}
+                                        <tr>
+                                            <td>{{ event[5][:16] }}</td>
+                                            <td>
+                                                {% if event[1] == 'no_helmet' %}
+                                                <span class="badge bg-warning">ไม่สวมหมวก</span>
+                                                {% elif event[1] == 'loud_exhaust' %}
+                                                <span class="badge bg-danger">เสียงท่อดัง</span>
+                                                {% elif event[1] == 'speeding' %}
+                                                <span class="badge bg-info">ขับเร็ว</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ event[2] }}</td>
+                                            <td>{{ event[4] }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">ยังไม่มีเหตุการณ์</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+const dailyChart = new Chart(dailyCtx, {
+    type: 'line',
+    data: {
+        labels: JSON.parse('{{ daily_stats.dates | tojson | escapejs }}'),
+        datasets: [
+            {
+                label: 'ไม่สวมหมวก',
+                data: JSON.parse('{{ daily_stats.no_helmet | tojson | escapejs }}'),
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.4
+            },
+            {
+                label: 'เสียงท่อดัง',
+                data: JSON.parse('{{ daily_stats.loud_exhaust | tojson | escapejs }}'),
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.4
+            },
+            {
+                label: 'ขับเร็ว',
+                data: JSON.parse('{{ daily_stats.speeding | tojson | escapejs }}'),
+                borderColor: '#0dcaf0',
+                backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                tension: 0.4
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'สถิติเหตุการณ์รายวัน'
+            }
+        }
+    }
+});
+
+const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+const hourlyChart = new Chart(hourlyCtx, {
+    type: 'bar',
+    data: {
+        labels: JSON.parse('{{ hourly_stats.hours | tojson | escapejs }}'),
+        datasets: [
+            {
+                label: 'ไม่สวมหมวก',
+                data: JSON.parse('{{ hourly_stats.no_helmet | tojson | escapejs }}'),
+                backgroundColor: '#ffc107'
+            },
+            {
+                label: 'เสียงท่อดัง',
+                data: JSON.parse('{{ hourly_stats.loud_exhaust | tojson | escapejs }}'),
+                backgroundColor: '#dc3545'
+            },
+            {
+                label: 'ขับเร็ว',
+                data: JSON.parse('{{ hourly_stats.speeding | tojson | escapejs }}'),
+                backgroundColor: '#0dcaf0'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'สถิติเหตุการณ์รายชั่วโมง'
+            }
+        }
+    }
+});
+
+function cleanupFiles() {
+    if (confirm('คุณแน่ใจที่จะทำความสะอาดไฟล์เก่าทั้งหมด?')) {
+        fetch('/cleanup_files', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + data.error);
+                }
+            });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}อัปโหลดไฟล์ - Smart Rider System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse bg-dark">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> แดชบอร์ด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live') }}">
+                            <i class="fas fa-video"></i> กล้องสด
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('upload_file') }}">
+                            <i class="fas fa-upload"></i> อัปโหลดไฟล์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_files') }}">
+                            <i class="fas fa-folder"></i> จัดการไฟล์
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2"><i class="fas fa-upload"></i> อัปโหลดไฟล์</h1>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+
+            {% if success %}
+            <div class="alert alert-success">{{ success }}</div>
+            {% endif %}
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>อัปโหลดไฟล์ภาพหรือวิดีโอ</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">เลือกไฟล์</label>
+                                    <input class="form-control" type="file" id="file" name="file" required>
+                                    <div class="form-text">
+                                        รองรับไฟล์: JPG, PNG, GIF, MP4, AVI, MOV, MKV (สูงสุด 100MB)
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="upload_type" class="form-label">ประเภทการอัปโหลด</label>
+                                    <select class="form-select" id="upload_type" name="upload_type" required>
+                                        <option value="no_helmet">ไม่สวมหมวกกันน็อค</option>
+                                        <option value="loud_exhaust">เสียงท่อดัง</option>
+                                        <option value="speeding">ขับเร็วเกินกำหนด</option>
+                                        <option value="general">ทั่วไป</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">คำอธิบาย</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3" 
+                                              placeholder="อธิบายเกี่ยวกับไฟล์นี้..."></textarea>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i> อัปโหลดไฟล์
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>ข้อมูลการอัปโหลด</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>ขนาดไฟล์สูงสุด:</strong> 100MB</p>
+                            <p><strong>ประเภทที่รองรับ:</strong></p>
+                            <ul>
+                                <li>ภาพ: JPG, PNG, GIF</li>
+                                <li>วิดีโอ: MP4, AVI, MOV, MKV</li>
+                            </ul>
+                            <p><strong>การจัดการไฟล์:</strong></p>
+                            <ul>
+                                <li>ไฟล์จะถูกเก็บอัตโนมัติ 30 วัน</li>
+                                <li>จำกัดจำนวนไฟล์ต่อโฟลเดอร์</li>
+                                <li>สามารถลบไฟล์ได้ manually</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

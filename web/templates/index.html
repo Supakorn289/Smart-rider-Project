@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}หน้าแรก - Smart Rider System{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="#">
+            <i class="fas fa-motorcycle"></i> Smart Rider System
+        </a>
+        <div class="navbar-nav">
+            <a class="nav-link" href="{{ url_for('live') }}">กล้องสด</a>
+            <a class="nav-link" href="{{ url_for('login') }}">เข้าสู่ระบบ</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto text-center">
+            <h1 class="mb-4">ระบบติดตามผู้ขับขี่รถจักรยานยนต์</h1>
+            <p class="lead">ระบบอัจฉริยะสำหรับการตรวจสอบและบันทึกเหตุการณ์การขับขี่</p>
+            
+            <div class="row mt-5">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <i class="fas fa-helmet-safety fa-3x text-warning mb-3"></i>
+                            <h5>ตรวจสอบการสวมหมวกกันน็อค</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <i class="fas fa-volume-up fa-3x text-danger mb-3"></i>
+                            <h5>ตรวจสอบระดับเสียงท่อไอเสีย</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+                            <h5>ตรวจสอบความเร็ว</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-5">
+                <a href="{{ url_for('live') }}" class="btn btn-primary btn-lg me-3">
+                    <i class="fas fa-video"></i> ดูกล้องสด
+                </a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
