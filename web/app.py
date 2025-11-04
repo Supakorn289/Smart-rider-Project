@@ -155,31 +155,47 @@ class AIDetectionSystem:
 # ===============================
 # 🎥 Video Stream with Real AI Detection
 # ===============================
+INFERENCE_FPS = 5  # ปรับได้ (แนะนำ 4-8) เพื่อความลื่น
+
 class VideoStream:
-    def __init__(self, src=0, width=640, height=480):
+    """Decoupled capture + inference for smoother display."""
+    def __init__(self, src=0, width=640, height=480, inference_fps=INFERENCE_FPS):
         self.cap = None
-        self.frame = None
-        self.running = True
-        self.ai_system = AIDetectionSystem()
         self.camera_index = src
         self.width = width
         self.height = height
+
+        # frames
+        self.raw_frame = None        # latest captured frame (BGR)
+        self.display_frame = None    # latest annotated/display frame (BGR)
+        self.lock = threading.Lock()
+
+        # control
+        self.running = True
         self.fallback_mode = False
-        self.detection_stats = {
-            'total_frames': 0,
-            'violations_detected': 0,
-            'last_violation': None
-        }
-        self.thread = threading.Thread(target=self.update, daemon=True)
-        self.thread.start()
-        logger.info("🎥 เริ่มต้น VideoStream พร้อม AI Detection")
+
+        # stats and AI
+        self.ai_system = AIDetectionSystem()
+        self.detection_stats = {'total_frames': 0, 'violations_detected': 0, 'last_violation': None}
+        self.inference_interval = 1.0 / max(1, inference_fps)
+
+        # start camera
+        self.cap = self.initialize_camera()
+        if self.cap is None:
+            logger.warning("❌ ไม่สามารถเปิดกล้องได้ — ใช้ demo fallback")
+            self.fallback_mode = True
+
+        # threads
+        self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self.infer_thread = threading.Thread(target=self._inference_loop, daemon=True)
+        self.capture_thread.start()
+        self.infer_thread.start()
+        logger.info("🎥 VideoStream threads started (capture + inference)")
     
     def initialize_camera(self):
-        """เริ่มต้นกล้อง"""
+        """เริ่มต้นกล้อง (เหมือนเดิม)"""
         try:
-            # ลอง backend ต่างๆ
             backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
-            
             for backend in backends:
                 try:
                     cap = cv2.VideoCapture(self.camera_index, backend)
@@ -187,78 +203,93 @@ class VideoStream:
                         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
                         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
                         cap.set(cv2.CAP_PROP_FPS, 30)
-                        
-                        # ทดสอบอ่านเฟรม
                         ret, test_frame = cap.read()
                         if ret and test_frame is not None:
                             logger.info(f"✅ เปิดกล้องสำเร็จด้วย backend: {backend}")
-                            self.fallback_mode = False
                             return cap
                         else:
                             cap.release()
-                except:
+                except Exception:
                     continue
-            
-            logger.warning("❌ ไม่สามารถเปิดกล้องได้ ใช้โหมดทดแทน")
-            self.fallback_mode = True
             return None
-            
         except Exception as e:
             logger.error(f"❌ ข้อผิดพลาดในการเริ่มต้นกล้อง: {e}")
-            self.fallback_mode = True
             return None
     
-    def update(self):
-        """อัพเดทเฟรมพร้อมตรวจจับ AI"""
-        self.cap = self.initialize_camera()
-        
-        if self.fallback_mode:
-            self.run_fallback_mode()
-            return
-        
-        logger.info("🎬 เริ่มการตรวจจับแบบ Real-time ด้วย AI")
+    def _capture_loop(self):
+        """อ่านเฟรมจากกล้องให้เร็วที่สุด (ไม่ทำ inference)"""
         while self.running:
+            if self.fallback_mode:
+                # ให้ demo frame ในกรณี fallback
+                with self.lock:
+                    self.raw_frame = self.create_ai_demo_frame()
+                time.sleep(0.05)
+                continue
+
+            if not self.cap or not self.cap.isOpened():
+                time.sleep(0.2)
+                continue
+
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                logger.debug("⚠️ capture: failed to read frame")
+                time.sleep(0.05)
+                continue
+
+            # store latest raw frame
+            with self.lock:
+                self.raw_frame = frame
+            # tiny sleep to avoid tight loop starving CPU
+            time.sleep(0.005)
+    
+    def _inference_loop(self):
+        """รัน AI เป็นช่วง ๆ ตาม inference_interval"""
+        while self.running:
+            start = time.time()
+            frame_to_process = None
+            with self.lock:
+                if self.raw_frame is not None:
+                    frame_to_process = self.raw_frame.copy()
+
+            if frame_to_process is None:
+                # ไม่มีเฟรม ให้รอแล้วลองอีกครั้ง
+                time.sleep(0.05)
+                continue
+
             try:
-                if self.cap and self.cap.isOpened():
-                    ret, frame = self.cap.read()
-                    if ret and frame is not None:
-                        self.detection_stats['total_frames'] += 1
-                        
-                        # ตรวจจับด้วย AI
-                        processed_frame, violation_detected, violations = self.ai_system.detect_helmets(frame)
-                        self.frame = processed_frame
-                        
-                        # บันทึกเหตุการณ์เมื่อพบการละเมิด
-                        if violation_detected:
-                            self.detection_stats['violations_detected'] += 1
-                            self.detection_stats['last_violation'] = datetime.now()
-                            self.save_violation(frame, violations)
-                    else:
-                        logger.warning("⚠️ ไม่สามารถอ่านเฟรมจากกล้องได้")
-                        time.sleep(1)
-                else:
-                    logger.warning("⚠️ กล้องปิดอยู่")
-                    time.sleep(2)
-                
-                time.sleep(0.033)  # ~30 FPS
-                
+                # run detection (heavy) -- at limited fps
+                processed_frame, violation_detected, violations = self.ai_system.detect_helmets(frame_to_process)
+
+                # update display frame and stats
+                with self.lock:
+                    self.display_frame = processed_frame
+                    self.detection_stats['total_frames'] += 1
+                    if violation_detected:
+                        self.detection_stats['violations_detected'] += 1
+                        self.detection_stats['last_violation'] = datetime.now().isoformat()
+
+                # save violation (non-blocking by delegating to thread may be done; keep simple)
+                if violation_detected:
+                    try:
+                        self.save_violation(frame_to_process, violations)
+                    except Exception as e:
+                        logger.error(f"❌ ข้อผิดพลาดในการบันทึก violation: {e}")
+
             except Exception as e:
-                logger.error(f"❌ ข้อผิดพลาดใน loop หลัก: {e}")
-                time.sleep(1)
+                logger.error(f"❌ ข้อผิดพลาดใน inference: {e}")
+
+            # sleep to honor target inference rate
+            elapsed = time.time() - start
+            to_sleep = self.inference_interval - elapsed
+            if to_sleep > 0:
+                time.sleep(to_sleep)
     
     def run_fallback_mode(self):
-        """โหมดทดแทนเมื่อกล้องไม่ทำงาน"""
-        logger.info("🔁 เริ่มโหมดทดแทน")
+        """ยังคงมีเพื่อความเข้ากันได้ แต่ไม่ได้ใช้หลักการแล้ว"""
         while self.running:
-            try:
-                # สร้างเฟรมทดแทนที่มีข้อมูล AI
-                frame = self.create_ai_demo_frame()
-                self.frame = frame
-                time.sleep(0.1)
-                
-            except Exception as e:
-                logger.error(f"❌ ข้อผิดพลาดในโหมดทดแทน: {e}")
-                time.sleep(1)
+            with self.lock:
+                self.display_frame = self.create_ai_demo_frame()
+            time.sleep(0.1)
     
     def create_ai_demo_frame(self):
         """สร้างเฟรมทดแทนที่แสดงข้อมูล AI"""
@@ -340,37 +371,43 @@ class VideoStream:
             logger.error(f"❌ ข้อผิดพลาดในการบันทึกเหตุการณ์: {e}")
     
     def get_frame(self):
-        """รับเฟรมปัจจุบัน"""
+        """รับเฟรมปัจจุบัน (เอา display_frame ก่อน ถ้าไม่มีใช้ raw_frame)"""
         try:
-            if self.frame is not None:
-                ret, jpeg = cv2.imencode('.jpg', self.frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            with self.lock:
+                frame = self.display_frame if self.display_frame is not None else self.raw_frame
+                if frame is None:
+                    return None
+                ret, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 if ret:
                     return jpeg.tobytes()
         except Exception as e:
             logger.error(f"❌ ข้อผิดพลาดใน get_frame: {e}")
-        
-        # Fallback: สร้างเฟรม error
-        try:
-            error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            error_frame[:] = (0, 0, 100)
-            cv2.putText(error_frame, "AI SYSTEM ERROR", (200, 240), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            ret, jpeg = cv2.imencode('.jpg', error_frame)
-            return jpeg.tobytes()
-        except:
-            return None
+        return None
     
     def get_detection_stats(self):
-        """รับสถิติการตรวจจับ"""
+        """รับสำเนาสถิติ"""
         return self.detection_stats.copy()
     
     def stop(self):
-        """หยุดการทำงาน"""
+        """หยุด threads และปล่อยกล้อง"""
         self.running = False
+        try:
+            if self.capture_thread.is_alive():
+                self.capture_thread.join(timeout=1.0)
+        except Exception:
+            pass
+        try:
+            if self.infer_thread.is_alive():
+                self.infer_thread.join(timeout=1.0)
+        except Exception:
+            pass
         if self.cap and self.cap.isOpened():
-            self.cap.release()
+            try:
+                self.cap.release()
+            except:
+                pass
         cv2.destroyAllWindows()
-        logger.info("🛑 VideoStream หยุดแล้ว")
+        logger.info("🛑 VideoStream หยุดแล้ว (threads stopped)")
 
 # ===============================
 # 📊 Systems Manager
@@ -447,15 +484,27 @@ class StatisticsManager:
 
 # ===============================
 # 🏁 เริ่มต้นระบบ
-# ===============================
 file_manager = FileManager()
 stats_manager = StatisticsManager()
-video_stream = VideoStream()
+video_stream = None
 
 def generate_frames():
     """สร้าง video feed สำหรับ streaming"""
     while True:
         try:
+            if video_stream is None:
+                # ส่งภาพสถานะแทนเพื่อไม่ให้หน้าเว็บแสดงจอดำ
+                error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                error_frame[:] = (40, 40, 60)
+                cv2.putText(error_frame, "CAMERA OFFLINE / STARTING...", (50, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 200), 2)
+                ret, jpeg = cv2.imencode('.jpg', error_frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+                if ret:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
+                time.sleep(0.5)
+                continue
+
             frame_bytes = video_stream.get_frame()
             if frame_bytes:
                 yield (b'--frame\r\n'
@@ -518,11 +567,27 @@ _app_initialized = False
 
 @app.before_request
 def initialize_system():
-    global _app_initialized
+    global _app_initialized, video_stream
     if not _app_initialized:
         logger.info("🚀 เริ่มต้นระบบ Smart Rider AI...")
         init_db()
         file_manager.cleanup_old_files()
+
+        # เริ่ม VideoStream เฉพาะใน process หลักของ reloader (ป้องกันเปิดกล้องซ้ำ)
+        try:
+            should_start_camera = (os.environ.get('WERKZEUG_RUN_MAIN') == 'true') or (not app.debug)
+            if video_stream is None and should_start_camera:
+                try:
+                    video_stream = VideoStream()
+                    logger.info("✅ VideoStream ถูกเริ่มแล้ว")
+                except Exception as e:
+                    logger.error(f"❌ ไม่สามารถเริ่ม VideoStream: {e}")
+                    video_stream = None
+            else:
+                logger.info("ℹ️ ไม่เริ่ม VideoStream ใน process นี้ (reloader parent or debug skip)")
+        except Exception as e:
+            logger.error(f"❌ ข้อผิดพลาดขณะพยายามเริ่มระบบ: {e}")
+
         _app_initialized = True
         logger.info("✅ ระบบพร้อมทำงาน!")
 
@@ -582,8 +647,10 @@ def dashboard():
         c.execute("SELECT * FROM events ORDER BY timestamp DESC LIMIT 5")
         recent_events = c.fetchall()
         
-        # สถิติการตรวจจับแบบ real-time
-        detection_stats = video_stream.get_detection_stats()
+        # สถิติการตรวจจับแบบ real-time (guard เมื่อ video_stream ยังไม่เริ่ม)
+        detection_stats = video_stream.get_detection_stats() if video_stream else {
+            'total_frames': 0, 'violations_detected': 0, 'last_violation': None
+        }
         
         capture_size = file_manager.get_folder_size(app.config['CAPTURE_FOLDER'])
         
@@ -606,9 +673,12 @@ def dashboard():
 @app.route('/live')
 def live():
     """หน้าแสดงกล้องสดพร้อม AI Detection"""
-    detection_stats = video_stream.get_detection_stats()
+    detection_stats = video_stream.get_detection_stats() if video_stream else {
+        'total_frames': 0, 'violations_detected': 0, 'last_violation': None
+    }
     return render_template('live.html', detection_stats=detection_stats)
 
+# Provide the video MJPEG stream endpoint used by the live page
 @app.route('/video_feed')
 def video_feed():
     """Video feed ที่มีการตรวจจับ AI แบบ real-time"""
@@ -618,7 +688,9 @@ def video_feed():
 @app.route('/api/detection_stats')
 def api_detection_stats():
     """API สำหรับรับสถิติการตรวจจับแบบ real-time"""
-    stats = video_stream.get_detection_stats()
+    stats = video_stream.get_detection_stats() if video_stream else {
+        'total_frames': 0, 'violations_detected': 0, 'last_violation': None
+    }
     return jsonify(stats)
 
 @app.route('/test_ai')
@@ -790,12 +862,16 @@ if __name__ == '__main__':
     print("🧪 AI Test: http://localhost:5000/test_ai")
     print("📺 Live AI: http://localhost:5000/live")
     print("=" * 70)
-    
     try:
+        # รันปกติ (startup ของ camera จะทำใน before_request สำหรับ process ที่เหมาะสม)
         app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
     except KeyboardInterrupt:
         print("\n🛑 หยุดระบบโดยผู้ใช้")
     except Exception as e:
-        print(f"❌ ข้อผิดพลาด: {e}")
+        logger.error(f"❌ ไม่สามารถเริ่มเซิร์ฟเวอร์ได้: {e}")
     finally:
-        video_stream.stop()
+        if video_stream:
+            try:
+                video_stream.stop()
+            except Exception:
+                pass
